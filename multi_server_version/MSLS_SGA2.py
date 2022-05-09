@@ -1,10 +1,5 @@
 """
-假设每个科室有2个服务台
-每人依然检查8个项目
-顾客同时到达
-服务时长固定
-染色体编码不变，解码不采用半活动解码，优先选择人少的队列插入记录
-相当于只考虑调度顺序的变化带来的后果，不考虑具体队列的情况
+染色体不保存解码记录version
 """
 import copy
 import math
@@ -12,7 +7,6 @@ import random
 from operator import attrgetter
 
 import numpy as np
-
 
 cost_time_lookup = [
     3,  # 0体质测试   4
@@ -54,10 +48,6 @@ class Chromosome:
         self.total_wait = None  # 总等待时间
         self.greater_than_threshold = None  # 超阈值等待时间
         self.service_idle = None  # 服务台空闲时间
-        self.patient_table = [[] for _ in range(total_people)]  # 顾客存储[project_index, service_index, start, end]
-        self.service_table = [
-            [[] for _ in range(resource_look_up[sidx])] for sidx in range(project_num)
-        ]  # 服务台存储[patient_index, start, end]
 
     @staticmethod
     def translate_operation(opt):
@@ -98,11 +88,15 @@ class Chromosome:
         解码
         :return: None
         """
+        patient_table = [[] for _ in range(total_people)]
+        service_table = [
+            [[] for _ in range(resource_look_up[sidx])] for sidx in range(project_num)
+        ]  # 服务台存储[patient_index, start, end]
         for operation in self.sequence:
             patient_index, project_index = self.translate_operation(operation)
             cost_time = cost_time_lookup[project_index]
-            patient_records = self.patient_table[patient_index]  # 客户的所有记录
-            queues_records = self.service_table[project_index]  # 项目服务台多个队列的所有记录
+            patient_records = patient_table[patient_index]  # 客户的所有记录
+            queues_records = service_table[project_index]  # 项目服务台多个队列的所有记录
 
             # 获取客户最早有空时间
             patient_early_time = self.get_people_last_end(patient_records)
@@ -115,25 +109,19 @@ class Chromosome:
             patient_records.append([project_index, queue_index, start_time, end_time])
             queues_records[queue_index].append([patient_index, start_time, end_time])
 
-    def clean_table_cache(self):
-        self.patient_table = [[] for _ in range(total_people)]  # 顾客存储[project_index, service_index, start, end]
-        self.service_table = [
-            [[] for _ in range(resource_look_up[sidx])] for sidx in range(project_num)
-        ]  # 服务台存储[patient_index, start, end]
+        return patient_table, service_table
 
     def compute_fitness(self):
         """
         解码
         :return: None
         """
-        if self.fitness is not None:
-            self.clean_table_cache()
-        self.translate()
+        patient_table, _ = self.translate()
         W_sum = 0
         w_thanT_sum = 0
         tmp_lates = []
-        for records in self.patient_table:
-            assert len(records) == project_num # 确保每个人都完成了8个项目
+        for records in patient_table:
+            assert len(records) == project_num  # 确保每个人都完成了8个项目
             records.sort(key=lambda e: e[3])
             tmp_lates.append(records[-1][3])
             for i in range(len(records)):
@@ -160,18 +148,9 @@ class Chromosome:
         print("seq: ", self.sequence)
         print("obj: ", self.fitness)
         print("makespan: ", self.makespan)
-        print("total_wait: ", self.total_wait)
+        print("avg_total_wait: ", self.total_wait / total_people)
         print("greater_than_threshold: ", self.greater_than_threshold)
 
-    def print_status(self):
-        """打印表格"""
-        print("service records:")
-        for service in self.service_table:
-            for records in service:
-                print(records)
-        print("patient records:")
-        for records in self.patient_table:
-            print(records)
 
 class Population:
     def __init__(self, size):
@@ -193,7 +172,7 @@ class Population:
         """种群迭代"""
         global POP_SIZE
         for i in range(POP_SIZE - 1):
-            (parent1, parent2) = self.members[i], self.members[i+1]
+            (parent1, parent2) = self.members[i], self.members[i + 1]
             child1, child2 = self._crossover(parent1, parent2)
             self._mutate(child1)
             self._mutate(child2)
@@ -216,11 +195,10 @@ class Population:
         self._get_fitness()
         return min(self.members, key=attrgetter('fitness'))
 
-
     def select(self):
         if self.members[-1].fitness is None:
             self._get_fitness()  # 选择前计算适应度
-        num_to_select = math.floor(self.size * (GROUP/100))
+        num_to_select = math.floor(self.size * (GROUP / 100))
         sample = random.sample(range(self.size), num_to_select)
         sample_members = sorted([self.members[i] for i in sample], key=attrgetter('fitness'))
         return sample_members[:2]
@@ -240,8 +218,8 @@ class Population:
             p1_idxs, p1_seqs = self.get_proj_idx_seq(parent1.sequence, p_projects)
             # 拿到parent2上该顾客的所有项目及顺序
             p2_idxs, p2_seqs = self.get_proj_idx_seq(parent2.sequence, p_projects)
-            random.shuffle(p1_seqs)
-            random.shuffle(p2_seqs)
+            # random.shuffle(p1_seqs)
+            # random.shuffle(p2_seqs)
             self.change_seq(child1_seq, p1_idxs, p2_seqs)
             self.change_seq(child2_seq, p2_idxs, p1_seqs)
             return Chromosome(child1_seq), Chromosome(child2_seq)
@@ -283,7 +261,7 @@ class Population:
         """从染色体中得到较大等待顾客的pid"""
         if chromosome.fitness is None:
             chromosome.compute_fitness()
-        people_records = chromosome.patient_table
+        people_records, _ = chromosome.translate()
         pidxs = []
         for pid in range(len(people_records)):
             records = people_records[pid]
@@ -328,6 +306,7 @@ class Population:
         self.change_seq(seq_copy, p_idxs, p_seqs)
         return Chromosome(seq_copy)
 
+
 if __name__ == '__main__':
     best_fitness = 99999999
     population = Population(POP_SIZE)
@@ -347,4 +326,3 @@ if __name__ == '__main__':
 
     print(best_fitness)
     print(metrics)
-
