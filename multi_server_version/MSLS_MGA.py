@@ -345,18 +345,17 @@ def MGA():
             pop1 = pops[j]
             pop2 = pops[(j + 1) % (TOTAL_POP - 1)]
             parent1 = pop1.get_best()
-            for i in range(POP_SIZE):
-                parent2 = pop2.members[i]
-                child1, child2 = pop2.crossover(parent1, parent2)
-                pop2.mutate(child1)
-                pop2.mutate(child2)
-                parent1.compute_fitness()
-                parent2.compute_fitness()
-                child1.compute_fitness()
-                child2.compute_fitness()
-                better = min([parent2, child1, child2], key=attrgetter('fitness'))
-                idx = pop2.members.index(parent2)
-                pop2.members[idx] = better
+            parent2 = pop2.get_weak()
+            child1, child2 = pop2.crossover(parent1, parent2)
+            pop2.mutate(child1)
+            pop2.mutate(child2)
+            parent1.compute_fitness()
+            parent2.compute_fitness()
+            child1.compute_fitness()
+            child2.compute_fitness()
+            better = min([parent2, child1, child2], key=attrgetter('fitness'))
+            idx = pop2.members.index(parent2)
+            pop2.members[idx] = better
 
         # 优秀dna填充到最优保存种群
         elite_pop = pops[-1]
@@ -389,18 +388,18 @@ def MGA():
             metrics = [final_best_dna.makespan, final_best_dna.total_wait / total_people,
                        final_best_dna.greater_than_threshold]
             gen0 = 0  # 保持次数清0
-            print("最优解:", best_fitness)
-            print("最优序列: ", best_dna_seq)
-            print("最优指标: ", metrics)
+            print("best_fitness:", best_fitness)
+            print("best_seq: ", best_dna_seq)
+            print("metrics: ", metrics)
         else:
             gen0 = gen0 + 1
-            print("已经重复最优值{}次".format(gen0))
+            print("already same: {} times".format(gen0))
 
 
     print("===========================================")
-    print("最优解:", best_fitness)
-    print("最优序列: ", best_dna_seq)
-    print("最优指标: ", metrics)
+    print("best fitness:", best_fitness)
+    print("best dna seq: ", best_dna_seq)
+    print("best metrics: ", metrics)
     print("===========================================")
 
 if __name__ == '__main__':

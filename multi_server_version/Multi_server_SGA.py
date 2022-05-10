@@ -17,10 +17,10 @@ from matplotlib import pyplot as plt
 cost_time_lookup = [
     3,  # 0体质测试   4
     3,  # 1内科      4
-    4,  # 2外科      3
-    2,  # 3眼耳口鼻科 5
-    3,  # 4验血      4
-    2,  # 5心电图    5
+    # 4,  # 2外科
+    # 2,  # 3眼耳口鼻科
+    # 3,  # 4验血
+    # 2,  # 5心电图
     5,  # 6X光      3
     6,  # 7B超      2
 ]  # 共28分钟
@@ -29,12 +29,12 @@ resource_look_up = [
     2,
     2,
     2,
-    2,
-    2,
-    2,
-    2,
+    # 2,
+    # 2,
+    # 2,
+    # 2,
 ]
-total_people = 60
+total_people = 20
 project_num = len(cost_time_lookup)
 T_W = 15  # 等待阈值
 GAMMA1 = 1  # 惩罚系数1，用于实验1
@@ -274,7 +274,7 @@ class Population:
             mem.compute_fitness()
 
 
-if __name__ == '__main__':
+def SGA():
     best_fitness = 99999999
     population = Population(POP_SIZE)
     best_fits = []
@@ -297,3 +297,27 @@ if __name__ == '__main__':
     print(best_fitness)
     print(metrics)
 
+
+def debug_generate_sequence():
+    sequence_size = total_people * project_num
+    sequence = random.sample(range(1, sequence_size + 1), sequence_size)
+    return sequence
+
+
+if __name__ == '__main__':
+    seq = [31, 67, 27, 37, 80, 35, 44, 55, 77, 72, 29, 53, 10, 34, 57, 74, 9, 70, 73, 24, 32, 61, 8, 36, 17, 13, 65, 6, 7, 18, 59, 52, 28, 62, 43, 71, 47, 15, 51, 12, 46, 56, 22, 69, 19, 76, 21, 11, 64, 23, 60, 26, 75, 1, 54, 49, 16, 5, 45, 68, 42, 78, 39, 48, 66, 50, 58, 63, 30, 25, 4, 41, 79, 33, 38, 20, 2, 14, 3, 40]
+    i1 = seq.index(34)
+    i2 = seq.index(6)
+
+
+    c = Chromosome(seq)
+    c.compute_fitness()
+    c.print_metric()
+    c.print_status()
+
+    """
+    obj:  1698
+    makespan:  62
+    total_wait:  616
+    greater_than_threshold:  102
+    """
