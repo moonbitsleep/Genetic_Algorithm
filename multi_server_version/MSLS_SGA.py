@@ -59,6 +59,40 @@ class Chromosome:
             [[] for _ in range(resource_look_up[sidx])] for sidx in range(project_num)
         ]  # 服务台存储[patient_index, start, end]
 
+    def scan_service_table(self):
+        """解码后局部搜索使用"""
+        self.compute_fitness()
+        for i in range(len(self.service_table)):
+            queues = self.service_table[i]
+            for j in range(len(queues)):
+                queue_records = queues[j]
+                for k in range(len(queue_records) - 2):
+                    record1 = queue_records[k]
+                    record2 = queue_records[k + 1]
+                    if record2[1] - record1[2] >= 15:
+                        return i, record2[0], queue_records[k+2][0]
+        proj_idx = random.randint(0, len(self.service_table) - 1)
+        que_idx = random.randint(0, len(self.service_table[proj_idx]) - 1)
+        rec_idx1 = random.randint(0, len(self.service_table[proj_idx][que_idx]) - 2)
+        rec_idx2 = rec_idx1 + 1
+        return proj_idx, self.service_table[proj_idx][que_idx][rec_idx1][0], self.service_table[proj_idx][que_idx][rec_idx2][0]
+
+    def explore_search1(self):
+        proj, p1, p2 = self.scan_service_table()
+        gene1 = self.deserialization(proj, p1)
+        gene2 = self.deserialization(proj, p2)
+        seq_copy = copy.deepcopy(self.sequence)
+        idx1 = seq_copy.index(gene1)
+        idx2 = seq_copy.index(gene2)
+        seq_copy[idx1], seq_copy[idx2] = seq_copy[idx2], seq_copy[idx1]
+        return Chromosome(seq_copy)
+
+    @staticmethod
+    def deserialization(proj_idx, pat_idx):
+        """根据项目index和顾客index得到gene"""
+        gene = proj_idx * project_num + pat_idx + 1
+        return gene
+
     @staticmethod
     def translate_operation(opt):
         """解码操作"""
@@ -303,19 +337,27 @@ class Population:
                         break
         return pidxs
 
+    # def local_search(self, chromosome):
+    #     """局部搜索"""
+    #     pidxs = self.get_large_waits_pidx(chromosome)
+    #     tmp1 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
+    #     tmp2 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
+    #     tmp3 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
+    #     tmp4 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
+    #     tmp1.compute_fitness()
+    #     tmp2.compute_fitness()
+    #     tmp3.compute_fitness()
+    #     tmp4.compute_fitness()
+    #     chromosome.compute_fitness()
+    #     better = min([tmp1, tmp2, tmp3, tmp4, chromosome], key=attrgetter('fitness'))
+    #     idx = self.members.index(chromosome)
+    #     self.members[idx] = better
+
     def local_search(self, chromosome):
-        """局部搜索"""
-        pidxs = self.get_large_waits_pidx(chromosome)
-        tmp1 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
-        tmp2 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
-        tmp3 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
-        tmp4 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
-        tmp1.compute_fitness()
-        tmp2.compute_fitness()
-        tmp3.compute_fitness()
-        tmp4.compute_fitness()
+        neighbor1 = chromosome.explore_search1()
+        neighbor1.compute_fitness()
         chromosome.compute_fitness()
-        better = min([tmp1, tmp2, tmp3, tmp4, chromosome], key=attrgetter('fitness'))
+        better = min([neighbor1, chromosome], key=attrgetter('fitness'))
         idx = self.members.index(chromosome)
         self.members[idx] = better
 
