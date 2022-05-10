@@ -1,8 +1,11 @@
 import math
 import random
+import time
+from params import *
 import numpy as np
 import matplotlib.pyplot as plt
-
+from chrom import Chromosome
+from population import Population
 """
 ======================================
     根据期望时间生成一个随机服务时间的矩阵
@@ -10,35 +13,23 @@ import matplotlib.pyplot as plt
     列数 = 项目数
 =======================================    
 """
-expect_service_times = [
-    3,  # 0体质测试
-    3,  # 1内科
-    4,  # 2外科
-    2,  # 3眼耳口鼻科
-    3,  # 4验血
-    2,  # 5心电图
-    5,  # 6X光
-    6,  # 7B超
-]
 
+def generate_time_table(people_total, project_total):
+    res = np.zeros(shape=(project_total, people_total))
+    for i in range(len(cost_time_lookup)):
+        res[i, :] = np.random.exponential(cost_time_lookup[i], [1, people_total])
 
-def expntl(L):
-    """
-    negative exponential distribution
-    return a double random number, L is the mean value
-    """
-    u = random.random()
-    return -L * math.log(u)
+    res = res.flatten().astype(int)
+    for i in range(len(res)):
+        if res[i] == 0:
+            res[i] = 1
+    res = res.reshape(project_total, people_total)
+    return res.T
 
-
-def gen_service_time_matrix():
-    pass
+def SGA():
+    population = Population(POP_SIZE)
 
 
 if __name__ == '__main__':
-   total = 60
-   serve_times = [math.ceil(expntl(6)) for _ in range(total)]
-   print(serve_times)
-   print(np.mean(serve_times))
-   plt.hist(serve_times)
-   plt.show()
+    pass
+
