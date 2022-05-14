@@ -133,29 +133,29 @@ class Population:
                         break
         return pidxs
 
-    # def local_search(self, chromosome):
-    #     """局部搜索"""
-    #     pidxs = self.get_large_waits_pidx(chromosome)
-    #     tmp1 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
-    #     tmp2 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
-    #     tmp3 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
-    #     tmp4 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
-    #     tmp1.compute_fitness()
-    #     tmp2.compute_fitness()
-    #     tmp3.compute_fitness()
-    #     tmp4.compute_fitness()
-    #     chromosome.compute_fitness()
-    #     better = min([tmp1, tmp2, tmp3, tmp4, chromosome], key=attrgetter('fitness'))
-    #     idx = self.members.index(chromosome)
-    #     self.members[idx] = better
-
     def local_search(self, chromosome):
-        neighbor1 = chromosome.explore_search1()
-        neighbor1.compute_fitness()
+        """粗略局部搜索"""
+        pidxs = self.get_large_waits_pidx(chromosome)
+        tmp1 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
+        tmp2 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
+        tmp3 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
+        tmp4 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
+        tmp1.compute_fitness()
+        tmp2.compute_fitness()
+        tmp3.compute_fitness()
+        tmp4.compute_fitness()
         chromosome.compute_fitness()
-        better = min([neighbor1, chromosome], key=attrgetter('fitness'))
+        better = min([tmp1, tmp2, tmp3, tmp4, chromosome], key=attrgetter('fitness'))
         idx = self.members.index(chromosome)
         self.members[idx] = better
+
+    # def local_search(self, chromosome):
+    #     neighbor1 = chromosome.explore_search1()
+    #     neighbor1.compute_fitness()
+    #     chromosome.compute_fitness()
+    #     better = min([neighbor1, chromosome], key=attrgetter('fitness'))
+    #     idx = self.members.index(chromosome)
+    #     self.members[idx] = better
 
     def generate_new_dna(self, seq_copy, pidx):
         # pidx = random.randint(1, total_people)
