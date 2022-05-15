@@ -1,5 +1,5 @@
 """
-染色体不保存解码记录version
+半活动解码version
 """
 import copy
 import math
@@ -7,6 +7,7 @@ import random
 from operator import attrgetter
 
 import numpy as np
+
 
 cost_time_lookup = [
     3,  # 0体质测试   4
@@ -19,14 +20,14 @@ cost_time_lookup = [
     6,  # 7B超      2
 ]  # 共28分钟
 resource_look_up = [
-    2,
-    2,
-    2,
-    2,
-    2,
-    2,
-    2,
-    2,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    4,
 ]
 total_people = 60
 project_num = len(cost_time_lookup)
@@ -48,6 +49,44 @@ class Chromosome:
         self.total_wait = None  # 总等待时间
         self.greater_than_threshold = None  # 超阈值等待时间
         self.service_idle = None  # 服务台空闲时间
+        self.patient_table = [[] for _ in range(total_people)]  # 顾客存储[project_index, service_index, start, end]
+        self.service_table = [
+            [[] for _ in range(resource_look_up[sidx])] for sidx in range(project_num)
+        ]  # 服务台存储[patient_index, start, end]
+
+    def scan_service_table(self):
+        """解码后局部搜索使用"""
+        self.compute_fitness()
+        for i in range(len(self.service_table)):
+            queues = self.service_table[i]
+            for j in range(len(queues)):
+                queue_records = queues[j]
+                for k in range(len(queue_records) - 2):
+                    record1 = queue_records[k]
+                    record2 = queue_records[k + 1]
+                    if record2[1] - record1[2] >= 15:
+                        return i, record2[0], queue_records[k+2][0]
+        proj_idx = random.randint(0, len(self.service_table) - 1)
+        que_idx = random.randint(0, len(self.service_table[proj_idx]) - 1)
+        rec_idx1 = random.randint(0, len(self.service_table[proj_idx][que_idx]) - 2)
+        rec_idx2 = rec_idx1 + 1
+        return proj_idx, self.service_table[proj_idx][que_idx][rec_idx1][0], self.service_table[proj_idx][que_idx][rec_idx2][0]
+
+    def explore_search1(self):
+        proj, p1, p2 = self.scan_service_table()
+        gene1 = self.deserialization(proj, p1)
+        gene2 = self.deserialization(proj, p2)
+        seq_copy = copy.deepcopy(self.sequence)
+        idx1 = seq_copy.index(gene1)
+        idx2 = seq_copy.index(gene2)
+        seq_copy[idx1], seq_copy[idx2] = seq_copy[idx2], seq_copy[idx1]
+        return Chromosome(seq_copy)
+
+    @staticmethod
+    def deserialization(proj_idx, pat_idx):
+        """根据项目index和顾客index得到gene"""
+        gene = proj_idx * project_num + pat_idx + 1
+        return gene
 
     @staticmethod
     def translate_operation(opt):
@@ -83,20 +122,28 @@ class Chromosome:
                     targets[1] = queue[-1][2]
         return targets[0], targets[1]
 
+    @staticmethod
+    def get_early_time_span(queues_records):
+        """
+        找到具有最早空闲时间段的队列，返回队列索引和最早空闲时间
+        :param queues_records: 服务台队列
+        :return: [队列索引, 最早空闲时间]
+        """
+
+
+
+
+
     def translate(self):
         """
         解码
         :return: None
         """
-        patient_table = [[] for _ in range(total_people)]
-        service_table = [
-            [[] for _ in range(resource_look_up[sidx])] for sidx in range(project_num)
-        ]  # 服务台存储[patient_index, start, end]
         for operation in self.sequence:
             patient_index, project_index = self.translate_operation(operation)
             cost_time = cost_time_lookup[project_index]
-            patient_records = patient_table[patient_index]  # 客户的所有记录
-            queues_records = service_table[project_index]  # 项目服务台多个队列的所有记录
+            patient_records = self.patient_table[patient_index]  # 客户的所有记录
+            queues_records = self.service_table[project_index]  # 项目服务台多个队列的所有记录
 
             # 获取客户最早有空时间
             patient_early_time = self.get_people_last_end(patient_records)
@@ -109,19 +156,25 @@ class Chromosome:
             patient_records.append([project_index, queue_index, start_time, end_time])
             queues_records[queue_index].append([patient_index, start_time, end_time])
 
-        return patient_table, service_table
+    def clean_table_cache(self):
+        self.patient_table = [[] for _ in range(total_people)]  # 顾客存储[project_index, service_index, start, end]
+        self.service_table = [
+            [[] for _ in range(resource_look_up[sidx])] for sidx in range(project_num)
+        ]  # 服务台存储[patient_index, start, end]
 
     def compute_fitness(self):
         """
         解码
         :return: None
         """
-        patient_table, _ = self.translate()
+        if self.fitness is not None:
+            self.clean_table_cache()
+        self.translate()
         W_sum = 0
         w_thanT_sum = 0
         tmp_lates = []
-        for records in patient_table:
-            assert len(records) == project_num  # 确保每个人都完成了8个项目
+        for records in self.patient_table:
+            assert len(records) == project_num # 确保每个人都完成了8个项目
             records.sort(key=lambda e: e[3])
             tmp_lates.append(records[-1][3])
             for i in range(len(records)):
@@ -148,9 +201,18 @@ class Chromosome:
         print("seq: ", self.sequence)
         print("obj: ", self.fitness)
         print("makespan: ", self.makespan)
-        print("avg_total_wait: ", self.total_wait / total_people)
+        print("total_wait: ", self.total_wait)
         print("greater_than_threshold: ", self.greater_than_threshold)
 
+    def print_status(self):
+        """打印表格"""
+        print("service records:")
+        for service in self.service_table:
+            for records in service:
+                print(records)
+        print("patient records:")
+        for records in self.patient_table:
+            print(records)
 
 class Population:
     def __init__(self, size):
@@ -172,7 +234,7 @@ class Population:
         """种群迭代"""
         global POP_SIZE
         for i in range(POP_SIZE - 1):
-            (parent1, parent2) = self.members[i], self.members[i + 1]
+            (parent1, parent2) = self.members[i], self.members[i+1]
             child1, child2 = self._crossover(parent1, parent2)
             self._mutate(child1)
             self._mutate(child2)
@@ -195,10 +257,11 @@ class Population:
         self._get_fitness()
         return min(self.members, key=attrgetter('fitness'))
 
+
     def select(self):
         if self.members[-1].fitness is None:
             self._get_fitness()  # 选择前计算适应度
-        num_to_select = math.floor(self.size * (GROUP / 100))
+        num_to_select = math.floor(self.size * (GROUP/100))
         sample = random.sample(range(self.size), num_to_select)
         sample_members = sorted([self.members[i] for i in sample], key=attrgetter('fitness'))
         return sample_members[:2]
@@ -218,8 +281,8 @@ class Population:
             p1_idxs, p1_seqs = self.get_proj_idx_seq(parent1.sequence, p_projects)
             # 拿到parent2上该顾客的所有项目及顺序
             p2_idxs, p2_seqs = self.get_proj_idx_seq(parent2.sequence, p_projects)
-            # random.shuffle(p1_seqs)
-            # random.shuffle(p2_seqs)
+            random.shuffle(p1_seqs)
+            random.shuffle(p2_seqs)
             self.change_seq(child1_seq, p1_idxs, p2_seqs)
             self.change_seq(child2_seq, p2_idxs, p1_seqs)
             return Chromosome(child1_seq), Chromosome(child2_seq)
@@ -261,7 +324,7 @@ class Population:
         """从染色体中得到较大等待顾客的pid"""
         if chromosome.fitness is None:
             chromosome.compute_fitness()
-        people_records, _ = chromosome.translate()
+        people_records = chromosome.patient_table
         pidxs = []
         for pid in range(len(people_records)):
             records = people_records[pid]
@@ -281,19 +344,27 @@ class Population:
                         break
         return pidxs
 
+    # def local_search(self, chromosome):
+    #     """局部搜索"""
+    #     pidxs = self.get_large_waits_pidx(chromosome)
+    #     tmp1 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
+    #     tmp2 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
+    #     tmp3 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
+    #     tmp4 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
+    #     tmp1.compute_fitness()
+    #     tmp2.compute_fitness()
+    #     tmp3.compute_fitness()
+    #     tmp4.compute_fitness()
+    #     chromosome.compute_fitness()
+    #     better = min([tmp1, tmp2, tmp3, tmp4, chromosome], key=attrgetter('fitness'))
+    #     idx = self.members.index(chromosome)
+    #     self.members[idx] = better
+
     def local_search(self, chromosome):
-        """局部搜索"""
-        pidxs = self.get_large_waits_pidx(chromosome)
-        tmp1 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
-        tmp2 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
-        tmp3 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
-        tmp4 = self.generate_new_dna(copy.deepcopy(chromosome.sequence), random.choice(pidxs))
-        tmp1.compute_fitness()
-        tmp2.compute_fitness()
-        tmp3.compute_fitness()
-        tmp4.compute_fitness()
+        neighbor1 = chromosome.explore_search1()
+        neighbor1.compute_fitness()
         chromosome.compute_fitness()
-        better = min([tmp1, tmp2, tmp3, tmp4, chromosome], key=attrgetter('fitness'))
+        better = min([neighbor1, chromosome], key=attrgetter('fitness'))
         idx = self.members.index(chromosome)
         self.members[idx] = better
 
@@ -305,7 +376,6 @@ class Population:
         random.shuffle(p_seqs)
         self.change_seq(seq_copy, p_idxs, p_seqs)
         return Chromosome(seq_copy)
-
 
 if __name__ == '__main__':
     best_fitness = 99999999
@@ -326,3 +396,4 @@ if __name__ == '__main__':
 
     print(best_fitness)
     print(metrics)
+

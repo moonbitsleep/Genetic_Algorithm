@@ -25,14 +25,14 @@ cost_time_lookup = [
     6,  # 7B超      2
 ]  # 共28分钟
 resource_look_up = [
-    2,
-    2,
-    2,
-    2,
-    2,
-    2,
-    2,
-    2,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    4,
 ]
 total_people = 60
 project_num = len(cost_time_lookup)

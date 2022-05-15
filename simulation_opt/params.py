@@ -19,7 +19,7 @@ resource_look_up = [
     2,
     2,
 ]
-total_people = 60
+total_people = 40
 project_num = len(cost_time_lookup)
 T_W = 15  # 等待阈值
 GAMMA1 = 1  # 惩罚系数1，用于实验1
