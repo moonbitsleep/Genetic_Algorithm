@@ -22,11 +22,11 @@ class MultiPopGeneticAlgorithm:
             pop = Population(POP_SIZE, CROSS_RATE, MUTATE_RATE)
             self.pops.append(pop)
 
-    def run(self):
+    def run(self, step):
         gen0 = 0
         gen = 0
 
-        while gen0 <= GEN_MAX:
+        while gen0 <= GEN_MAX and gen < step:
             gen = gen + 1
 
             # self evolve
@@ -89,9 +89,9 @@ class MultiPopGeneticAlgorithm:
 
 
 if __name__ == '__main__':
-    mga = MultiPopGeneticAlgorithm(10)
+    mga = MultiPopGeneticAlgorithm(5)
     start = time.time()
-    mga.run()
+    mga.run(110)
     end = time.time()
     print("waste time:", end - start)
     mga.print_final_best()

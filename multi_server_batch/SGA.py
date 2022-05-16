@@ -38,7 +38,7 @@ class SinglePopGeneticAlgorithm:
 if __name__ == '__main__':
     algo = SinglePopGeneticAlgorithm()
     s1 = time.time()
-    algo.run(200)
+    algo.run(400)
     e1 = time.time()
     print("waste time:", e1 - s1)
     algo.print_final_best()
