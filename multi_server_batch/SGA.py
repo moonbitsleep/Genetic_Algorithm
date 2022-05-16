@@ -1,8 +1,10 @@
+import copy
 import time
 
 from common_setting import *
 from pop import Population
 from collections import deque
+import matplotlib.pyplot as plt
 
 class SinglePopGeneticAlgorithm:
     def __init__(self):
@@ -22,17 +24,22 @@ class SinglePopGeneticAlgorithm:
             self.generation_fits.append(best_dna.fitness)
             if best_dna.fitness < self.best_fit:
                 self.best_fit = best_dna.fitness
-                self.best_chrom = best_dna
+                self.best_chrom = copy.deepcopy(best_dna)
 
     def print_final_best(self):
         print("*********best*************")
         self.best_chrom.print_metric()
         print("*********best*************")
 
+    def draw_plot(self):
+        plt.plot(self.generation_fits)
+        plt.show()
+
 if __name__ == '__main__':
     algo = SinglePopGeneticAlgorithm()
     s1 = time.time()
-    algo.run(150)
+    algo.run(200)
     e1 = time.time()
     print("waste time:", e1 - s1)
     algo.print_final_best()
+    algo.draw_plot()

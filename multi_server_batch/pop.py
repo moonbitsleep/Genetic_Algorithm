@@ -90,6 +90,11 @@ class Population:
         self.get_fitness()
         return min(self.members, key=attrgetter("fitness"))
 
+    def get_weak_chrom(self):
+        self.get_fitness()
+        return max(self.members, key=attrgetter("fitness"))
+
+
     def evolve(self):
         # TODO: select
         for i in range(self.pop_size - 1):
