@@ -6,9 +6,11 @@ import numpy
 
 from params import *
 import numpy as np
-import matplotlib.pyplot as plt
 from chrom import Chromosome
 from population import Population
+from OCBA import OCBA
+
+
 """
 ======================================
     根据期望时间生成一个随机服务时间的矩阵
@@ -16,6 +18,7 @@ from population import Population
     列数 = 项目数
 =======================================    
 """
+
 
 def generate_time_table(people_total, project_total):
     res = np.zeros(shape=(project_total, people_total))
@@ -28,21 +31,6 @@ def generate_time_table(people_total, project_total):
             res[i] = 1
     res = res.reshape(project_total, people_total)
     return res.T
-
-
-class SGA:
-    def __init__(self):
-        self.pop = Population(POP_SIZE)
-
-    def step(self, n):
-        for i in range(n):
-            self.pop.evolve_population()
-        print(self.pop.get_best().fitness)
-        return self.pop
-
-class Metric:
-    def __init__(self, maxF, W_sum, w_than_sum):
-        self.makespan = maxF
 
 
 def translate4simulation(seq, time_table):
@@ -101,18 +89,50 @@ def simulation(chromosome, simulation_num):
     return np.mean(fits), np.var(fits)
 
 
+class GAOO_OCBA:
+    def __init__(self):
+        self.T = 660
+        self.pop = Population(POP_SIZE)
+
+    def ocba_simulation(self, last_min_fitness, counts):
+        D = 10
+        ms = np.zeros(self.pop.size)
+        vs = np.zeros(self.pop.size)
+        while True:
+            for i in range(self.pop.size):
+                cm, cv = simulation(self.pop.members[i], int(counts[i]))
+                ms[i] = cm
+                vs[i] = cv
+            this_min_fitness = np.nanmin(ms)
+            print(last_min_fitness)
+            print(this_min_fitness)
+            if np.absolute(last_min_fitness - this_min_fitness) <= D:
+                break
+            _, counts = OCBA(ms, vs, np.zeros(self.pop.size), self.T)
+            last_min_fitness = this_min_fitness
+        print("end")
+
+
+    def run(self):
+        T = self.T
+        while True:
+            n0 = 30
+            ms = np.zeros(self.pop.size)
+            vs = np.zeros(self.pop.size)
+            for i in range(self.pop.size):
+                cm, cv = simulation(self.pop.members[i], n0)
+                ms[i] = cm
+                vs[i] = cv
+            _, counts = OCBA(ms, vs, np.ones(self.pop.size) * n0, T)
+            min_fit = np.nanmin(ms)
+            print(min_fit)
+            self.ocba_simulation(min_fit, counts)
+            break
+
+
+
+
 
 if __name__ == '__main__':
-    S_COUNT = 66000
-    sga = SGA()
-    pop = sga.step(100)
-    first_simu = S_COUNT // pop.size
-    means = []
-    vars = []
-    for dna in pop.members:
-        m, v = simulation(dna, first_simu)
-        means.append(m)
-        vars.append(v)
-
-    print(means)
-    print(vars)
+    gaoo_ocba = GAOO_OCBA()
+    gaoo_ocba.run()
